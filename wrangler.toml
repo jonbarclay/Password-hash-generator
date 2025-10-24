@@ -1,10 +1,9 @@
-name = "uvu-password-hash-demo"
+# wrangler.toml
+name = "passhashgen"                 # match the service name in the logs
 main = "worker.js"
 compatibility_date = "2025-10-24"
 
-# If you’re using the KV version:
 [[kv_namespaces]]
 binding = "HASHES"
-# Replace these two IDs after you create/bind the namespace:
-id = "YOUR_PROD_NAMESPACE_ID"
-preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
+id = "uvu-md5-hashes"
+preview_id = "uvu-md5-hashes"   # can be same as id if you pref
