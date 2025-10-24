@@ -1,16 +1,16 @@
 // worker.js
-// UVU Cybersecurity Demo — Minimal password submission page
-// Persists a server-side hash log to KV key "md5hashes.txt" served at /md5hashes.txt
-// Requires a KV binding named: HASHES
+// Minimal UVU demo: accept a password, hash it server-side, and append ONLY the hash
+// to a text file served at /md5hashes.txt.
+// Requires a KV binding named HASHES.
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Serve the aggregate text file
+    // Serve the simple list of hashes
     if (request.method === "GET" && url.pathname === "/md5hashes.txt") {
-      const txt = await env.HASHES.get("md5hashes.txt");
-      return new Response(txt || "", {
+      const body = await env.HASHES.get("md5hashes.txt");
+      return new Response(body || "", {
         headers: {
           "content-type": "text/plain; charset=utf-8",
           "cache-control": "no-store",
@@ -25,7 +25,6 @@ export default {
     }
 
     if (request.method === "POST") {
-      // Accept form or JSON
       const ct = request.headers.get("content-type") || "";
       let pw = "";
       try {
@@ -47,18 +46,16 @@ export default {
         });
       }
 
-      // Compute hash server-side (algorithm intentionally not shown on the page)
-      const hashed = md5(pw);
+      // Hash server-side; do not reveal algorithm or details on the page.
+      const hash = md5(pw);
 
-      // Append a simple line to the KV-backed file
+      // Append ONLY the hash + newline to the KV file (no header, no metadata).
       const key = "md5hashes.txt";
-      const header = "timestamp\thash\tlen\n";
-      const line = `${new Date().toISOString()}\t${hashed}\t${pw.length}\n`;
       const existing = await env.HASHES.get(key);
-      const next = (existing ? existing : header) + line;
+      const next = (existing || "") + hash + "\n";
       await env.HASHES.put(key, next);
 
-      // Show a minimal thank-you message with no extra details
+      // Simple thank-you
       return new Response(renderHTML({ success: true }), {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
@@ -68,7 +65,7 @@ export default {
   },
 };
 
-/** -------- Minimal UVU-themed HTML (no MD5 mentions, no note field) -------- */
+/** -------- Minimal UVU-themed HTML (no algorithm mentions) -------- */
 function renderHTML(opts = {}) {
   const { success = false, error = "" } = opts;
   return `<!doctype html>
@@ -76,7 +73,7 @@ function renderHTML(opts = {}) {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>UVU Cybersecurity Password Cracking Demo</title>
+<title>UVU Cybersecurity Demo — Password Submission</title>
 <style>
   :root { --uvu-green:#215732; --uvu-dark:#143220; --uvu-light:#e8f1ec; --uvu-accent:#89b19a; --text:#0b1b12; --danger:#8b1e1e; }
   *{box-sizing:border-box}
@@ -98,32 +95,30 @@ function renderHTML(opts = {}) {
 </style>
 </head>
 <body>
-<header>
-  <h1>UVU Cybersecurity Password Cracking Demo</h1>
-</header>
+<header><h1>UVU Cybersecurity Demo — Password Submission</h1></header>
 <main>
   <section class="card">
     ${error ? `<div class="error">❌ ${escapeHTML(error)}</div>` : ""}
     ${success ? `<div class="success">Thanks for your submission.</div>` : ""}
     <div class="banner">
       <strong>Important:</strong> Do <em>not</em> use any password you use at UVU or anywhere else.
-      Submit only a brand-new, throwaway password created for this educational demonstration.
+      Submit only a brand-new, throwaway string created for this educational demonstration.
     </div>
     <form method="post" action="/" autocomplete="off" novalidate>
       <div>
         <label for="pw">Password for demo</label>
-        <input id="pw" name="pw" type="password" minlength="1" required placeholder="password" />
+        <input id="pw" name="pw" type="password" minlength="1" required placeholder="Enter a throwaway demo password" />
       </div>
       <button type="submit">Submit</button>
     </form>
   </section>
 </main>
-<footer>UVU Cybersecurity Password Cracking Demo</footer>
+<footer>UVU-themed demo</footer>
 </body>
 </html>`;
 }
 
-/** ---- MD5 implementation (kept server-side only; not referenced in UI) ---- */
+/** ---- MD5 implementation (server-side only; UI does not reference it) ---- */
 function md5(string){function R(l,s){return(l<<s)|(l>>>32-s)}function A(x,y){var a=(x&0x3fffffff)+(y&0x3fffffff);var b=(x&0x40000000);var c=(y&0x40000000);var d=(x&0x80000000);var e=(y&0x80000000);if(b&c)return a^0x80000000^d^e; if(b|c){if(a&0x40000000)return a^0xc0000000^d^e; else return a^0x40000000^d^e}return a^d^e}
 function F(x,y,z){return(x&y)|((~x)&z)}function G(x,y,z){return(x&z)|(y&(~z))}function H(x,y,z){return x^y^z}function I(x,y,z){return y^(x|(~z))}
 function FF(a,b,c,d,x,s,ac){a=A(a,A(A(F(b,c,d),x),ac));return A(R(a,s),b)}
