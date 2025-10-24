@@ -1,9 +1,10 @@
 # wrangler.toml
-name = "passhashgen"                 # match the service name in the logs
+name = "passhashgen"            # match the service name shown in the logs
 main = "worker.js"
 compatibility_date = "2025-10-24"
 
 [[kv_namespaces]]
-binding = "HASHES"
-id = "uvu-md5-hashes"
-preview_id = "uvu-md5-hashes"   # can be same as id if you pref
+binding = "HASHES"              # must match env.HASHES in your code
+id = "643294ffc82848448f0d3056f17e75af"
+# optional if you made a separate preview namespace:
+# preview_id = "PUT_YOUR_PREVIEW_NAMESPACE_ID_HERE"
