@@ -1,10 +1,10 @@
 // worker.js
-// UVU Password Hash Demo (MD5 -> KV text file at /md5hashes.txt)
-// Bind a KV namespace as: HASHES
-// No plaintext passwords are stored.
+// UVU Cybersecurity Demo — Minimal password submission page
+// Persists a server-side hash log to KV key "md5hashes.txt" served at /md5hashes.txt
+// Requires a KV binding named: HASHES
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     // Serve the aggregate text file
@@ -27,63 +27,56 @@ export default {
     if (request.method === "POST") {
       // Accept form or JSON
       const ct = request.headers.get("content-type") || "";
-      let pw = "", note = "";
+      let pw = "";
       try {
         if (ct.includes("application/json")) {
           const data = await request.json();
           pw = (data.password || "").toString();
-          note = (data.note || "").toString();
         } else {
           const form = await request.formData();
           pw = (form.get("pw") || "").toString();
-          note = (form.get("note") || "").toString();
         }
       } catch {
         return new Response("Bad request body.", { status: 400 });
       }
 
       if (!pw) {
-        return new Response(renderHTML({ error: "Please enter a password." }), {
+        return new Response(renderHTML({ error: "Please enter a value." }), {
           headers: { "content-type": "text/html; charset=utf-8" },
           status: 400,
         });
       }
 
+      // Compute hash server-side (algorithm intentionally not shown on the page)
       const hashed = md5(pw);
-      const line =
-        `${new Date().toISOString()}\t${hashed}\tlen=${pw.length}` +
-        (note ? `\tnote=${sanitizeNote(note)}` : "") + `\n`;
 
-      // Append to KV (simple, best-effort; see R2 version below for strong concurrency)
+      // Append a simple line to the KV-backed file
       const key = "md5hashes.txt";
+      const header = "timestamp\thash\tlen\n";
+      const line = `${new Date().toISOString()}\t${hashed}\t${pw.length}\n`;
       const existing = await env.HASHES.get(key);
-      const header = "timestamp\tmd5\tlen\tnote\n";
       const next = (existing ? existing : header) + line;
       await env.HASHES.put(key, next);
 
-      return new Response(
-        renderHTML({
-          success: true,
-          lastHash: hashed,
-          fileLink: "/md5hashes.txt",
-        }),
-        { headers: { "content-type": "text/html; charset=utf-8" } }
-      );
+      // Show a minimal thank-you message with no extra details
+      return new Response(renderHTML({ success: true }), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
 
     return new Response("Method Not Allowed", { status: 405 });
   },
 };
 
-/** ---- UVU-themed HTML ---- */
+/** -------- Minimal UVU-themed HTML (no MD5 mentions, no note field) -------- */
 function renderHTML(opts = {}) {
-  const { success = false, error = "", lastHash = "", fileLink = "/md5hashes.txt" } = opts;
+  const { success = false, error = "" } = opts;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>UVU Cybersecurity Demo — MD5 Hash Submission</title>
+<title>UVU Cybersecurity Password Cracking Demo</title>
 <style>
   :root { --uvu-green:#215732; --uvu-dark:#143220; --uvu-light:#e8f1ec; --uvu-accent:#89b19a; --text:#0b1b12; --danger:#8b1e1e; }
   *{box-sizing:border-box}
@@ -92,58 +85,45 @@ function renderHTML(opts = {}) {
   header{background:linear-gradient(135deg,var(--uvu-green),var(--uvu-dark));color:#fff;padding:24px 16px;text-align:center;border-bottom:4px solid var(--uvu-accent)}
   header h1{margin:0 0 6px;font-size:1.6rem}
   main{display:grid;place-items:center;padding:24px 16px}
-  .card{width:100%;max-width:680px;background:#fff;border-radius:14px;border:1px solid #dfe7e3;box-shadow:0 10px 24px rgba(0,0,0,.05);padding:22px}
+  .card{width:100%;max-width:620px;background:#fff;border-radius:14px;border:1px solid #dfe7e3;box-shadow:0 10px 24px rgba(0,0,0,.05);padding:22px}
   .banner{background:#fff7e6;border:1px solid #ffe6b3;color:#5c3d00;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.98rem}
   .success{background:#eefaf0;border:1px solid #bfe6c8;color:#0f5a2d;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:.95rem}
   .error{background:#fdeaea;border:1px solid #f3b3b3;color:var(--danger);border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:.95rem}
   form{display:grid;gap:14px;margin-top:8px}
   label{font-weight:600}
-  input[type="password"],input[type="text"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #cfd9d3;font-size:1rem;outline:none}
+  input[type="password"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #cfd9d3;font-size:1rem;outline:none}
   input:focus{border-color:var(--uvu-green);box-shadow:0 0 0 3px rgba(33,87,50,.1)}
-  .help{font-size:.9rem;color:#4a5a52;margin-top:-6px}
   button{appearance:none;border:none;cursor:pointer;border-radius:10px;padding:12px 16px;font-weight:700;font-size:1rem;color:#fff;background:var(--uvu-green)}
-  .hashbox{font-family:ui-monospace,Menlo,Consolas,monospace;background:#f5f8f6;border:1px dashed var(--uvu-accent);padding:10px 12px;border-radius:10px;overflow-wrap:anywhere}
   footer{text-align:center;font-size:.9rem;color:#567261;padding:18px}
-  a.button{display:inline-block;margin-top:10px;text-decoration:none}
 </style>
 </head>
 <body>
 <header>
-  <h1>UVU Cybersecurity Demo — MD5 Hash Submission</h1>
-  <p>Educational exercise on weak hashes and password cracking</p>
+  <h1>UVU Cybersecurity Password Cracking Demo</h1>
 </header>
 <main>
   <section class="card">
     ${error ? `<div class="error">❌ ${escapeHTML(error)}</div>` : ""}
-    ${success ? `<div class="success">✅ Recorded. MD5: <span class="hashbox">${lastHash}</span><br>
-      View file: <a class="button" href="${fileLink}">${fileLink}</a></div>` : ""}
+    ${success ? `<div class="success">Thanks for your submission.</div>` : ""}
     <div class="banner">
       <strong>Important:</strong> Do <em>not</em> use any password you use at UVU or anywhere else.
-      Anything submitted here will be <strong>hashed to MD5</strong> and may be subjected to cracking as part of this demonstration.
+      Submit only a brand-new, throwaway password created for this educational demonstration.
     </div>
     <form method="post" action="/" autocomplete="off" novalidate>
       <div>
-        <label for="pw">Demo password</label>
-        <input id="pw" name="pw" type="password" minlength="1" required placeholder="Enter a throwaway demo password" />
-        <div class="help">Use a brand-new, fake password created only for this demo.</div>
+        <label for="pw">Password for demo</label>
+        <input id="pw" name="pw" type="password" minlength="1" required placeholder="password" />
       </div>
-      <div>
-        <label for="note">Optional note (e.g., table/team)</label>
-        <input id="note" name="note" type="text" maxlength="64" placeholder="Optional context stored with the hash" />
-      </div>
-      <button type="submit">Append MD5 to file</button>
+      <button type="submit">Submit</button>
     </form>
-    <p class="help" style="margin-top:14px;">
-      This page does not store or log plaintext; it computes MD5 and appends the hash to <code>/md5hashes.txt</code>.
-    </p>
   </section>
 </main>
-<footer>UVU-themed demo · Built for live instruction on ${new Date().toLocaleDateString()}.</footer>
+<footer>UVU Cybersecurity Password Cracking Demo</footer>
 </body>
 </html>`;
 }
 
-/** ---- MD5 (pure JS) ---- */
+/** ---- MD5 implementation (kept server-side only; not referenced in UI) ---- */
 function md5(string){function R(l,s){return(l<<s)|(l>>>32-s)}function A(x,y){var a=(x&0x3fffffff)+(y&0x3fffffff);var b=(x&0x40000000);var c=(y&0x40000000);var d=(x&0x80000000);var e=(y&0x80000000);if(b&c)return a^0x80000000^d^e; if(b|c){if(a&0x40000000)return a^0xc0000000^d^e; else return a^0x40000000^d^e}return a^d^e}
 function F(x,y,z){return(x&y)|((~x)&z)}function G(x,y,z){return(x&z)|(y&(~z))}function H(x,y,z){return x^y^z}function I(x,y,z){return y^(x|(~z))}
 function FF(a,b,c,d,x,s,ac){a=A(a,A(A(F(b,c,d),x),ac));return A(R(a,s),b)}
@@ -186,6 +166,4 @@ a=II(a,b,c,d,x[k+8],6,0x6fa87e4f); d=II(d,a,b,c,x[k+15],10,0xfe2ce6e0);
 c=II(c,d,a,b,x[k+6],15,0xa3014314); b=II(b,c,d,a,x[k+13],21,0x4e0811a1);
 a=A(a,AA)>>>0; b=A(b,BB)>>>0; c=A(c,CC)>>>0; d=A(d,DD)>>>0;}
 return (toHex(a)+toHex(b)+toHex(c)+toHex(d)).toLowerCase()}
-function toHex(l){let s="";for(let i=0;i<=3;i++){const b=(l>>>(i*8))&255;s+=("0"+b.toString(16)).slice(-2)}return s}
 function escapeHTML(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
-function sanitizeNote(s){return String(s).replace(/\s+/g," ").slice(0,64)}
