@@ -95,7 +95,7 @@ function renderHTML(opts = {}) {
 </style>
 </head>
 <body>
-<header><h1>UVU Cybersecurity Demo — Password Submission</h1></header>
+<header><h1>Password cracking demo</h1></header>
 <main>
   <section class="card">
     ${error ? `<div class="error">❌ ${escapeHTML(error)}</div>` : ""}
@@ -106,14 +106,14 @@ function renderHTML(opts = {}) {
     </div>
     <form method="post" action="/" autocomplete="off" novalidate>
       <div>
-        <label for="pw">Password for demo</label>
-        <input id="pw" name="pw" type="password" minlength="1" required placeholder="Enter a throwaway demo password" />
+        <label for="pw">Password</label>
+        <input id="pw" name="pw" type="password" minlength="1" required placeholder="password" />
       </div>
       <button type="submit">Submit</button>
     </form>
   </section>
 </main>
-<footer>UVU-themed demo</footer>
+<footer>Password cracking demo</footer>
 </body>
 </html>`;
 }
