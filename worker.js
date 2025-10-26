@@ -124,6 +124,8 @@ function ntlmHash(input) {
   return md4(message);
 }
 
+export { ntlmHash };
+
 function stringToUtf16LeBytes(str) {
   const bytes = new Uint8Array(str.length * 2);
   for (let i = 0; i < str.length; i++) {
@@ -142,9 +144,9 @@ function md4(messageBytes) {
   padded.set(messageBytes);
   padded[length] = 0x80;
 
-  const bitLength = length * 8;
+  const bitLength = BigInt(length) * 8n;
   for (let i = 0; i < 8; i++) {
-    padded[padded.length - 8 + i] = (bitLength >>> (8 * i)) & 0xff;
+    padded[padded.length - 8 + i] = Number((bitLength >> BigInt(8 * i)) & 0xffn);
   }
 
   let a = 0x67452301;
@@ -229,7 +231,10 @@ function md4(messageBytes) {
     d = add(d, dd);
   }
 
-  return [a, b, c, d].map(toHex).join("");
+  return [a, b, c, d]
+    .map(toHex)
+    .join("")
+    .toUpperCase();
 }
 
 function F(x, y, z) {
