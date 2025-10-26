@@ -1,6 +1,6 @@
 // worker.js
 // Minimal UVU demo: accept a password, hash it server-side, and append ONLY the hash
-// to a text file served at /md5hashes.txt.
+// to a text file served at /ntlmhashes.txt.
 // Requires a KV binding named HASHES.
 
 export default {
@@ -8,8 +8,8 @@ export default {
     const url = new URL(request.url);
 
     // Serve the simple list of hashes
-    if (request.method === "GET" && url.pathname === "/md5hashes.txt") {
-      const body = await env.HASHES.get("md5hashes.txt");
+    if (request.method === "GET" && url.pathname === "/ntlmhashes.txt") {
+      const body = await env.HASHES.get("ntlmhashes.txt");
       return new Response(body || "", {
         headers: {
           "content-type": "text/plain; charset=utf-8",
@@ -47,10 +47,10 @@ export default {
       }
 
       // Hash server-side; do not reveal algorithm or details on the page.
-      const hash = md5(pw);
+      const hash = ntlmHash(pw);
 
       // Append ONLY the hash + newline to the KV file (no header, no metadata).
-      const key = "md5hashes.txt";
+      const key = "ntlmhashes.txt";
       const existing = await env.HASHES.get(key);
       const next = (existing || "") + hash + "\n";
       await env.HASHES.put(key, next);
@@ -118,47 +118,151 @@ function renderHTML(opts = {}) {
 </html>`;
 }
 
-/** ---- MD5 implementation (server-side only; UI does not reference it) ---- */
-function md5(string){function R(l,s){return(l<<s)|(l>>>32-s)}function A(x,y){var a=(x&0x3fffffff)+(y&0x3fffffff);var b=(x&0x40000000);var c=(y&0x40000000);var d=(x&0x80000000);var e=(y&0x80000000);if(b&c)return a^0x80000000^d^e; if(b|c){if(a&0x40000000)return a^0xc0000000^d^e; else return a^0x40000000^d^e}return a^d^e}
-function F(x,y,z){return(x&y)|((~x)&z)}function G(x,y,z){return(x&z)|(y&(~z))}function H(x,y,z){return x^y^z}function I(x,y,z){return y^(x|(~z))}
-function FF(a,b,c,d,x,s,ac){a=A(a,A(A(F(b,c,d),x),ac));return A(R(a,s),b)}
-function GG(a,b,c,d,x,s,ac){a=A(a,A(A(G(b,c,d),x),ac));return A(R(a,s),b)}
-function HH(a,b,c,d,x,s,ac){a=A(a,A(A(H(b,c,d),x),ac));return A(R(a,s),b)}
-function II(a,b,c,d,x,s,ac){a=A(a,A(A(I(b,c,d),x),ac));return A(R(a,s),b)}
-function W(str){const m=unescape(encodeURIComponent(str));const l=m.length;const n=((l+8-(l+8)%64)/64+1)*16;const wa=new Array(n-1);let bp=0,bc=0;for(;bc<l;bc++){const wc=(bc-(bc%4))/4;bp=(bc%4)*8;wa[wc]=(wa[wc]|(m.charCodeAt(bc)<<bp))>>>0}const wc=(bc-(bc%4))/4;bp=(bc%4)*8;wa[wc]=wa[wc]|(0x80<<bp);wa[n-2]=(l<<3)>>>0;wa[n-1]=(l>>>29)>>>0;return wa}
-function toHex(l){let s="";for(let i=0;i<=3;i++){const b=(l>>>(i*8))&255;s+=("0"+b.toString(16)).slice(-2)}return s}
-const x=W(string);let a=0x67452301,b=0xefcdab89,c=0x98badcfe,d=0x10325476;
-for(let k=0;k<x.length;k+=16){const AA=a,BB=b,CC=c,DD=d;
-a=FF(a,b,c,d,x[k+0],7,0xd76aa478); d=FF(d,a,b,c,x[k+1],12,0xe8c7b756);
-c=FF(c,d,a,b,x[k+2],17,0x242070db); b=FF(b,c,d,a,x[k+3],22,0xc1bdceee);
-a=FF(a,b,c,d,x[k+4],7,0xf57c0faf); d=FF(d,a,b,c,x[k+5],12,0x4787c62a);
-c=FF(c,d,a,b,x[k+6],17,0xa8304613); b=FF(b,c,d,a,x[k+7],22,0xfd469501);
-a=FF(a,b,c,d,x[k+8],7,0x698098d8); d=FF(d,a,b,c,x[k+9],12,0x8b44f7af);
-c=FF(c,d,a,b,x[k+10],17,0xffff5bb1); b=FF(b,c,d,a,x[k+11],22,0x895cd7be);
-a=FF(a,b,c,d,x[k+12],7,0x6b901122); d=FF(d,a,b,c,x[k+13],12,0xfd987193);
-c=FF(c,d,a,b,x[k+14],17,0xa679438e); b=FF(b,c,d,a,x[k+15],22,0x49b40821);
-a=GG(a,b,c,d,x[k+1],5,0xf61e2562); d=GG(d,a,b,c,x[k+6],9,0xc040b340);
-c=GG(c,d,a,b,x[k+11],14,0x265e5a51); b=GG(b,c,d,a,x[k+0],20,0xe9b6c7aa);
-a=GG(a,b,c,d,x[k+5],5,0xd62f105d); d=GG(d,a,b,c,x[k+10],9,0x02441453);
-c=GG(c,d,a,b,x[k+15],14,0xd8a1e681); b=GG(b,c,d,a,x[k+4],20,0xe7d3fbc8);
-a=GG(a,b,c,d,x[k+9],5,0x21e1cde6); d=GG(d,a,b,c,x[k+14],9,0xc33707d6);
-c=GG(c,d,a,b,x[k+3],14,0xf4d50d87); b=GG(b,c,d,a,x[k+8],20,0x455a14ed);
-a=GG(a,b,c,d,x[k+13],5,0xa9e3e905); d=GG(d,a,b,c,x[k+2],9,0xfcefa3f8);
-c=GG(c,d,a,b,x[k+7],14,0x676f02d9); b=GG(b,c,d,a,x[k+12],20,0x8d2a4c8a);
-a=HH(a,b,c,d,x[k+5],4,0xfffa3942); d=HH(d,a,b,c,x[k+8],11,0x8771f681);
-c=HH(c,d,a,b,x[k+11],16,0x6d9d6122); b=HH(b,c,d,a,x[k+14],23,0xfde5380c);
-a=HH(a,b,c,d,x[k+1],4,0xa4beea44); d=HH(d,a,b,c,x[k+4],11,0x4bdecfa9);
-c=HH(c,d,a,b,x[k+7],16,0xf6bb4b60); b=HH(b,c,d,a,x[k+10],23,0xbebfbc70);
-a=HH(a,b,c,d,x[k+13],4,0x289b7ec6); d=HH(d,a,b,c,x[k+0],11,0xeaa127fa);
-c=HH(c,d,a,b,x[k+3],16,0xd4ef3085); b=HH(b,c,d,a,x[k+6],23,0x04881d05);
-a=HH(a,b,c,d,x[k+9],4,0xd9d4d039); d=HH(d,a,b,c,x[k+12],11,0xe6db99e5);
-c=HH(c,d,a,b,x[k+15],16,0x1fa27cf8); b=HH(b,c,d,a,x[k+2],23,0xc4ac5665);
-a=II(a,b,c,d,x[k+0],6,0xf4292244); d=II(d,a,b,c,x[k+7],10,0x432aff97);
-c=II(c,d,a,b,x[k+14],15,0xab9423a7); b=II(b,c,d,a,x[k+5],21,0xfc93a039);
-a=II(a,b,c,d,x[k+12],6,0x655b59c3); d=II(d,a,b,c,x[k+3],10,0x8f0ccc92);
-c=II(c,d,a,b,x[k+10],15,0xffeff47d); b=II(b,c,d,a,x[k+1],21,0x85845dd1);
-a=II(a,b,c,d,x[k+8],6,0x6fa87e4f); d=II(d,a,b,c,x[k+15],10,0xfe2ce6e0);
-c=II(c,d,a,b,x[k+6],15,0xa3014314); b=II(b,c,d,a,x[k+13],21,0x4e0811a1);
-a=A(a,AA)>>>0; b=A(b,BB)>>>0; c=A(c,CC)>>>0; d=A(d,DD)>>>0;}
-return (toHex(a)+toHex(b)+toHex(c)+toHex(d)).toLowerCase()}
+/** ---- NTLM implementation (server-side only; UI does not reference it) ---- */
+function ntlmHash(input) {
+  const message = stringToUtf16LeBytes(input);
+  return md4(message);
+}
+
+function stringToUtf16LeBytes(str) {
+  const bytes = new Uint8Array(str.length * 2);
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    bytes[i * 2] = code & 0xff;
+    bytes[i * 2 + 1] = code >>> 8;
+  }
+  return bytes;
+}
+
+function md4(messageBytes) {
+  const length = messageBytes.length;
+  const remainder = length % 64;
+  const paddingLength = remainder < 56 ? 56 - remainder : 120 - remainder;
+  const padded = new Uint8Array(length + paddingLength + 8);
+  padded.set(messageBytes);
+  padded[length] = 0x80;
+
+  const bitLength = length * 8;
+  for (let i = 0; i < 8; i++) {
+    padded[padded.length - 8 + i] = (bitLength >>> (8 * i)) & 0xff;
+  }
+
+  let a = 0x67452301;
+  let b = 0xefcdab89;
+  let c = 0x98badcfe;
+  let d = 0x10325476;
+
+  const X = new Uint32Array(16);
+
+  for (let i = 0; i < padded.length; i += 64) {
+    for (let j = 0; j < 16; j++) {
+      const k = i + j * 4;
+      X[j] =
+        padded[k] |
+        (padded[k + 1] << 8) |
+        (padded[k + 2] << 16) |
+        (padded[k + 3] << 24);
+    }
+
+    let aa = a;
+    let bb = b;
+    let cc = c;
+    let dd = d;
+
+    // Round 1
+    a = rotl(add3(a, F(b, c, d), X[0]), 3);
+    d = rotl(add3(d, F(a, b, c), X[1]), 7);
+    c = rotl(add3(c, F(d, a, b), X[2]), 11);
+    b = rotl(add3(b, F(c, d, a), X[3]), 19);
+    a = rotl(add3(a, F(b, c, d), X[4]), 3);
+    d = rotl(add3(d, F(a, b, c), X[5]), 7);
+    c = rotl(add3(c, F(d, a, b), X[6]), 11);
+    b = rotl(add3(b, F(c, d, a), X[7]), 19);
+    a = rotl(add3(a, F(b, c, d), X[8]), 3);
+    d = rotl(add3(d, F(a, b, c), X[9]), 7);
+    c = rotl(add3(c, F(d, a, b), X[10]), 11);
+    b = rotl(add3(b, F(c, d, a), X[11]), 19);
+    a = rotl(add3(a, F(b, c, d), X[12]), 3);
+    d = rotl(add3(d, F(a, b, c), X[13]), 7);
+    c = rotl(add3(c, F(d, a, b), X[14]), 11);
+    b = rotl(add3(b, F(c, d, a), X[15]), 19);
+
+    // Round 2
+    a = rotl(add4(a, G(b, c, d), X[0], 0x5a827999), 3);
+    d = rotl(add4(d, G(a, b, c), X[4], 0x5a827999), 5);
+    c = rotl(add4(c, G(d, a, b), X[8], 0x5a827999), 9);
+    b = rotl(add4(b, G(c, d, a), X[12], 0x5a827999), 13);
+    a = rotl(add4(a, G(b, c, d), X[1], 0x5a827999), 3);
+    d = rotl(add4(d, G(a, b, c), X[5], 0x5a827999), 5);
+    c = rotl(add4(c, G(d, a, b), X[9], 0x5a827999), 9);
+    b = rotl(add4(b, G(c, d, a), X[13], 0x5a827999), 13);
+    a = rotl(add4(a, G(b, c, d), X[2], 0x5a827999), 3);
+    d = rotl(add4(d, G(a, b, c), X[6], 0x5a827999), 5);
+    c = rotl(add4(c, G(d, a, b), X[10], 0x5a827999), 9);
+    b = rotl(add4(b, G(c, d, a), X[14], 0x5a827999), 13);
+    a = rotl(add4(a, G(b, c, d), X[3], 0x5a827999), 3);
+    d = rotl(add4(d, G(a, b, c), X[7], 0x5a827999), 5);
+    c = rotl(add4(c, G(d, a, b), X[11], 0x5a827999), 9);
+    b = rotl(add4(b, G(c, d, a), X[15], 0x5a827999), 13);
+
+    // Round 3
+    a = rotl(add4(a, H(b, c, d), X[0], 0x6ed9eba1), 3);
+    d = rotl(add4(d, H(a, b, c), X[8], 0x6ed9eba1), 9);
+    c = rotl(add4(c, H(d, a, b), X[4], 0x6ed9eba1), 11);
+    b = rotl(add4(b, H(c, d, a), X[12], 0x6ed9eba1), 15);
+    a = rotl(add4(a, H(b, c, d), X[2], 0x6ed9eba1), 3);
+    d = rotl(add4(d, H(a, b, c), X[10], 0x6ed9eba1), 9);
+    c = rotl(add4(c, H(d, a, b), X[6], 0x6ed9eba1), 11);
+    b = rotl(add4(b, H(c, d, a), X[14], 0x6ed9eba1), 15);
+    a = rotl(add4(a, H(b, c, d), X[1], 0x6ed9eba1), 3);
+    d = rotl(add4(d, H(a, b, c), X[9], 0x6ed9eba1), 9);
+    c = rotl(add4(c, H(d, a, b), X[5], 0x6ed9eba1), 11);
+    b = rotl(add4(b, H(c, d, a), X[13], 0x6ed9eba1), 15);
+    a = rotl(add4(a, H(b, c, d), X[3], 0x6ed9eba1), 3);
+    d = rotl(add4(d, H(a, b, c), X[11], 0x6ed9eba1), 9);
+    c = rotl(add4(c, H(d, a, b), X[7], 0x6ed9eba1), 11);
+    b = rotl(add4(b, H(c, d, a), X[15], 0x6ed9eba1), 15);
+
+    a = add(a, aa);
+    b = add(b, bb);
+    c = add(c, cc);
+    d = add(d, dd);
+  }
+
+  return [a, b, c, d].map(toHex).join("");
+}
+
+function F(x, y, z) {
+  return (x & y) | (~x & z);
+}
+
+function G(x, y, z) {
+  return (x & y) | (x & z) | (y & z);
+}
+
+function H(x, y, z) {
+  return x ^ y ^ z;
+}
+
+function add(x, y) {
+  return (x + y) >>> 0;
+}
+
+function add3(x, y, z) {
+  return (x + y + z) >>> 0;
+}
+
+function add4(x, y, z, w) {
+  return (x + y + z + w) >>> 0;
+}
+
+function rotl(x, s) {
+  return ((x << s) | (x >>> (32 - s))) >>> 0;
+}
+
+function toHex(num) {
+  return [0, 8, 16, 24]
+    .map((shift) => ((num >>> shift) & 0xff).toString(16).padStart(2, "0"))
+    .join("");
+}
 function escapeHTML(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
